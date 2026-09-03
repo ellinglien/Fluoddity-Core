@@ -34,6 +34,7 @@ struct ConfigData {
 };
 uniform ConfigData config;
 uniform int initial_conditions;  // 0=Grid, 1=Random, 2=Ring
+uniform int cohort_fences;       // Grid-mode only: soft leash back toward each entity's home cell
 
 #define PI 3.1415926
 
@@ -131,6 +132,35 @@ vec2 safenorm(vec2 p) {
     return length(p) == 0.0 ? vec2(0.0) : normalize(p);
 }
 
+// Grid-mode column/row split for a given cohort count, sized to the canvas's
+// actual aspect ratio (not just cohort count) -- picking cols proportional to
+// sqrt(cohorts * tex_aspect) means a wide canvas gets more columns than rows
+// (and a tall one more rows than columns), so cells stay roughly proportional
+// to the screen instead of stretching into thin strips on an ultrawide or
+// portrait window. do_reset's Grid branch and grid_fence_radius both call
+// this rather than deriving their own split, so the two can't drift apart --
+// the fence radius has to match the true cell size do_reset placed entities
+// into.
+vec2 grid_dims(int cohorts, vec2 cansz) {
+    float tex_aspect = cansz.x / cansz.y;
+    float spots = float(cohorts);
+    float cols = max(1.0, floor(sqrt(spots * tex_aspect) + 0.5));
+    float rows = ceil(spots / cols);
+    return vec2(cols, rows);
+}
+
+// Half the width of a Grid-mode cohort's home cell -- only Grid has a stable
+// per-cohort "spot" to derive a radius from (Random/Ring scatter or ring cohorts
+// with no fixed cell size).
+float grid_fence_radius(int cohorts) {
+    vec2 cansz = vec2(textureSize(canvas_texture, 0));
+    float aspect = cansz.y / cansz.x;
+    vec2 dims = grid_dims(cohorts, cansz);
+    float cell_w = 1.8 / dims.x;
+    float cell_h = (1.8 / dims.y) * aspect;
+    return 0.5 * min(cell_w, cell_h);
+}
+
 float get_cohort(int index) {
     return float(config.cohorts) * float(index) / float(entity_count);
 }
@@ -142,12 +172,15 @@ vec4 do_reset(int index) {
     vec2 vel = 0.01 * 0.005 * (vec2(hash(vec2(cohort_val, float(index))), hash(vec2(cohort_val, pos.y))) * 2.0 - 1.0);
     int cohorts = config.cohorts;
     if(initial_conditions == 0){
-        //GRID: position different cohorts at different places in a grid
+        //GRID: position different cohorts at different places in a grid,
+        //sized to the canvas's aspect ratio (grid_dims) so cells stay
+        //proportional instead of stretching thin on an ultrawide or
+        //portrait window
         float aspect = cansz.y/cansz.x;
-        float spots=float(cohorts);
-        float spot_rows=ceil(sqrt(spots));
-        vec2 gridcell=vec2(int(cohort_val)%int(spot_rows),(int(cohort_val))/int(spot_rows));
-        pos+=vec2(1.,aspect)*1.8*((gridcell)/spot_rows+ (1./2.*(1./spot_rows-1.)));
+        vec2 dims = grid_dims(cohorts, cansz);
+        int cohort_int = int(cohort_val);
+        vec2 gridcell = vec2(mod(float(cohort_int), dims.x), floor(float(cohort_int) / dims.x));
+        pos += vec2(1.,aspect) * 1.8 * (vec2(gridcell.x/dims.x, gridcell.y/dims.y) + vec2(0.5*(1./dims.x-1.), 0.5*(1./dims.y-1.)));
     }
     else if(initial_conditions == 1) {
         //RANDOM: scatter cohorts randomly across the canvas, homogenous start
@@ -252,6 +285,24 @@ void main() {
     // Move
     pos += vel;
     pos += strafe * config.strafe_power;
+
+    // Cohort fences: optional soft leash back toward this entity's Grid-mode
+    // home cell, so distinct cohorts stay visually separated instead of fully
+    // intermixing over time. Off by default -- ported from Fluoddity's own
+    // "Cohort Fences" feature. do_reset() is pure/deterministic on index, so
+    // re-calling it here (rather than storing a separate home texture) just
+    // recomputes the same home position do_reset would place this entity at.
+    if (cohort_fences != 0 && initial_conditions == 0) {
+        vec2 home = do_reset(index).xy;
+        float radius = grid_fence_radius(config.cohorts);
+        vec2 to_home = home - pos;
+        float excess = length(to_home) - radius;
+        if (excess > 0.0) {
+            vec2 dir = safenorm(to_home);
+            vel += 0.001 * excess * dir;
+            pos += 0.51 * excess * dir;
+        }
+    }
 
     // Wrap from -1 to 1
     pos = 2.0 * (fract(pos / 2.0 - 0.5) - 0.5);

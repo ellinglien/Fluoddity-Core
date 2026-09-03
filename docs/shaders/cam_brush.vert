@@ -15,6 +15,13 @@ uniform float cam_zoom;
 uniform vec2 window_size;
 uniform vec2 canvas_resolution;
 
+// Continuously-advancing 0..1 hue offset, driven by audio (see
+// AudioReactiveDriver.overallEnergy in docs/audio.js) -- added to every
+// cohort's own hue so the whole palette drifts together in sync with the
+// music's loudness, rather than disturbing the relative hue differences
+// between cohorts that make them visually distinguishable.
+uniform float audio_hue_shift;
+
 out vec2 v_uv;
 out vec4 v_color;
 
@@ -41,9 +48,12 @@ void main() {
     // Particle size
     float size = SPRITE_SIZE * 0.0015 / sqrt_world_size;
 
-    // Cohort color: hash the cohort index for a deterministic hue
+    // Cohort color: hash the cohort index for a deterministic hue, plus
+    // the audio-driven shift -- fract() wraps back into [0,1] since hue is
+    // circular (hsv2rgb doesn't care whether it received e.g. 1.2 or 0.2,
+    // but keeping it wrapped here is clearer than relying on that).
     int cohort_index = int(floor(float(instance_id) * float(cohorts) / float(entity_count)));
-    float hue = hash_float(uint(cohort_index) * 2654435761u);
+    float hue = fract(hash_float(uint(cohort_index) * 2654435761u) + audio_hue_shift);
     v_color = vec4(hue, 0.8, 1.0, 0.045);
 
     // Quad geometry indexed by gl_VertexID (TRIANGLE_FAN order)
