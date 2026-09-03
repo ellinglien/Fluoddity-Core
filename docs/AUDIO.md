@@ -16,19 +16,19 @@ Three ways to get audio in, all in the **Audio** row of the left-hand controls:
 
 | Source | How | Notes |
 |---|---|---|
-| **Capture App Audio** | Pick a tab in the share dialog, tick *Also share tab audio* | Zero setup. Chrome/Edge only — the button hides elsewhere |
+| **Share System Audio** | Turn on *Share with system audio* in the dialog | Zero setup. Chromium browsers only — the button hides elsewhere |
 | **Load File** | Pick a local audio file | Decoded fully into memory, gapless loop |
 | **Select input device** | Any input the OS exposes | A microphone, **or** a virtual loopback device |
 
-**Capture App Audio** is the path of least resistance: nothing to install, no
-file to find. It reacts to whatever is playing in the chosen tab — YouTube,
-Spotify's web player, Bandcamp. The video track is dropped immediately, so
-only audio is ever read, and ending the share from Chrome's own *Stop sharing*
+**Share System Audio** is the path of least resistance: nothing to install, no
+file to find, no per-app routing — it reacts to whatever the machine is
+playing. The video track is dropped the moment the stream arrives, so only
+audio is ever read, and ending the share from the browser's own *Stop sharing*
 bar tears the driver down cleanly.
 
 It uses **Conditional Focus** (`CaptureController.setFocusBehavior`) to stay
-put. Without it Chrome focuses whatever you picked, switching you away from
-Fluoddity at the one moment you want to watch it react.
+put. Without it the browser focuses whatever you picked, switching you away
+from Fluoddity at the one moment you want to watch it react.
 
 ### The surface you pick does not matter
 
