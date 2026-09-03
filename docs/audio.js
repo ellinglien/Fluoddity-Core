@@ -143,26 +143,6 @@ export async function listAudioInputDevices() {
  * @param {AudioContext} audioContext
  * @returns {Promise<AudioNode>}
  */
-/**
- * A loopback driver makes the machine's OUTPUT appear as an audio INPUT, which
- * is the only way to reach true system audio through the plain getUserMedia
- * permission prompt rather than the screen-share picker. Once installed and set
- * as the system output, this is the better path by some distance: one ordinary
- * mic-style dialog, remembered between visits, no video track, no "sharing your
- * screen" bar, and no per-app routing.
- *
- * Matched by name because there is no device flag that says "I am a loopback" --
- * the OS just reports another input.
- *
- * @returns {Promise<MediaDeviceInfo|null>}
- */
-const LOOPBACK_NAME = /blackhole|soundflower|loopback|vb-?audio|voicemeeter|virtual (audio|cable)|stereo mix|aggregate/i
-
-export async function findLoopbackDevice() {
-  const devices = await listAudioInputDevices()
-  return devices.find((d) => LOOPBACK_NAME.test(d.label)) || null
-}
-
 export async function sourceFromDisplayMedia(audioContext) {
   // We want AUDIO; the video surface is a formality the picker forces on us and
   // we throw the track away below. Where the browser offers a "share system

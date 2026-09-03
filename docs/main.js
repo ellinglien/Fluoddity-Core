@@ -22,7 +22,6 @@ import {
     sourceFromFile,
     sourceFromInputDevice,
     sourceFromDisplayMedia,
-    findLoopbackDevice,
     listAudioInputDevices,
     AudioReactiveDriver,
     DEFAULT_ROUTING
@@ -709,7 +708,6 @@ async function main() {
     const audioFileButton = document.getElementById('audio-file-button');
     const audioFileInput = document.getElementById('audio-file-input');
     const audioCaptureButton = document.getElementById('audio-capture-button');
-    const audioLoopbackButton = document.getElementById('audio-loopback-button');
     const audioInputSelector = document.getElementById('audio-input-selector');
     const audioStopButton = document.getElementById('audio-stop-button');
     const audioStatusRow = document.getElementById('audio-status-row');
@@ -850,40 +848,6 @@ async function main() {
             // shouting about in the log.
             if (e.name === 'NotAllowedError' || e.name === 'AbortError') return;
             logger.error(`Couldn't capture app audio: ${e.message}`);
-        }
-    });
-
-    // The clean path to system audio: one ordinary microphone-permission
-    // dialog, no screen picker, no sharing bar. Needs a loopback driver
-    // installed and set as the system output -- so find it rather than making
-    // the user identify it in a device list.
-    audioLoopbackButton.addEventListener('click', async () => {
-        audioLoopbackButton.blur();
-        try {
-            const ctx = await getOrCreateAudioContext();
-
-            // Device LABELS stay blank until audio permission has been granted
-            // at least once, and we match the loopback by name -- so this probe
-            // is what makes detection possible, not just a formality.
-            const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
-            probe.getTracks().forEach((t) => t.stop());
-
-            const device = await findLoopbackDevice();
-            if (!device) {
-                logger.error(
-                    'No loopback device found. Install BlackHole (macOS) or VB-Audio (Windows), ' +
-                    'set it as your computer\'s output, then try again -- or use Share System Audio, ' +
-                    'which needs no install.'
-                );
-                return;
-            }
-
-            const node = await sourceFromInputDevice(ctx, device.deviceId);
-            adoptAudioCapture(node.mediaStream);
-            startAudioDriver(node, device.label);
-        } catch (e) {
-            if (e.name === 'NotAllowedError') return; // declining is a normal choice
-            logger.error(`Couldn't open the loopback device: ${e.message}`);
         }
     });
 

@@ -252,13 +252,12 @@
         <div class="sec">
             <div class="sechd"><span class="hdr">Audio</span><span class="caret">&#9662;</span></div>
             <button id="audio-capture-button" title="React to whatever your computer is playing. Turn on &quot;Share with system audio&quot; in the dialog -- the surface you pick does not matter, the audio is system-wide either way.">Share System Audio</button>
-            <button id="audio-loopback-button" title="Reacts to everything your computer plays, through an ordinary microphone-permission dialog -- no screen picker, no sharing bar, and the browser remembers it. Needs a loopback driver (BlackHole on macOS, VB-Audio on Windows) installed and set as your system output.">Loopback Device</button>
             <div class="btn-pair">
                 <button id="audio-file-button" title="Load a local audio file and drive the sim from it">Load File</button>
                 <input type="file" id="audio-file-input" accept="audio/*" style="display: none;">
             </div>
             <select id="audio-input-selector"
-                    title="Pick a mic, or a virtual loopback device (e.g. BlackHole/Soundflower set as your system's output) to drive the sim from whatever's playing anywhere on your machine. Opens on click -- device names only show up after the first permission prompt.">
+                    title="Drive the sim from a microphone or a loopback device. Note: on macOS this switches Bluetooth headphones to mono (the OS uses the bidirectional headset profile whenever an input is open) -- prefer Share System Audio on Bluetooth.">
                 <option value="">Select input device...</option>
             </select>
             <div class="control-row" id="audio-status-row" style="display: none;">

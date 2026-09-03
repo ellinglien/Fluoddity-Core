@@ -18,7 +18,7 @@ Three ways to get audio in, all in the **Audio** row of the left-hand controls:
 |---|---|---|
 | **Share System Audio** | Turn on *Share with system audio* in the dialog | Zero setup. Chromium browsers only — the button hides elsewhere |
 | **Load File** | Pick a local audio file | Decoded fully into memory, gapless loop |
-| **Select input device** | Any input the OS exposes | A microphone, **or** a virtual loopback device |
+| **Select input device** | Any input the OS exposes | A microphone or loopback device. Degrades Bluetooth headsets to mono — see below |
 
 **Share System Audio** is the path of least resistance: nothing to install, no
 file to find, no per-app routing — it reacts to whatever the machine is
@@ -49,9 +49,21 @@ deliberately the user's; no constraint selects it. `systemAudio: 'include'` only
 decides whether the option is *offered*. Leaving it off is therefore the
 likeliest failure, so the thrown error names the toggle exactly.
 
-A loopback driver (BlackHole, Soundflower) via the input-device route remains
-the alternative, and the only route where a browser offers no system audio at
-all.
+### Why there is no one-click loopback button
+
+A loopback driver makes the machine's output appear as an *input*, which would
+reach system audio through the ordinary microphone prompt rather than the share
+picker. That was built and then removed: on macOS, opening **any** audio input
+drops a Bluetooth headset from A2DP (stereo, full bandwidth) to HFP — the
+bidirectional headset profile — and the user's own music degrades to mono
+telephone quality the moment the visualiser starts listening.
+
+That is a profile constraint in the OS, not something a page can avoid, and it
+applies to every `getUserMedia` route including the device dropdown. The share
+picker has no such problem: it taps the output, so nothing ever opens an input.
+
+The device dropdown remains for a microphone or a deliberately-chosen loopback
+device — useful on a desktop, best avoided on Bluetooth.
 
 The loopback route is the good one for playing your own music: set the system
 output to BlackHole (or Soundflower), then pick that same device as the input
