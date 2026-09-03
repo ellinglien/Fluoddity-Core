@@ -144,19 +144,20 @@ export async function listAudioInputDevices() {
  * @returns {Promise<AudioNode>}
  */
 export async function sourceFromDisplayMedia(audioContext) {
+  // We want AUDIO; the video surface is a formality the picker forces on us and
+  // we throw the track away below. Where the browser offers a "share system
+  // audio" toggle it applies to the whole system regardless of which surface is
+  // highlighted, so the surface choice buys the user nothing -- open on the
+  // monitor pane, where there is usually exactly one thing to click and system
+  // audio is the natural pairing, rather than making them pick a tab or window
+  // first. (Browsers differ on which surfaces carry audio at all; asking for a
+  // monitor is the request most likely to land on the toggle.)
   const options = {
-    // Open the picker on the TAB list. Of the three surfaces Chrome offers,
-    // only a tab carries audio on every platform: a window/app surface has no
-    // audio at all, anywhere, and "entire screen" only carries system audio on
-    // Windows/ChromeOS -- on macOS it is silent. Landing the user on the one
-    // pane that can actually work saves a silent failure.
-    video: { displaySurface: 'browser' },
+    video: { displaySurface: 'monitor' },
     audio: true,
-    // Nothing to gain from sharing Fluoddity with itself.
-    selfBrowserSurface: 'exclude',
-    // Where system audio IS available (Windows/ChromeOS), offer it.
     systemAudio: 'include',
-    surfaceSwitching: 'include'
+    monitorTypeSurfaces: 'include',
+    selfBrowserSurface: 'exclude'
   }
 
   // Chrome focuses the captured surface by default, so picking a tab or window
@@ -184,13 +185,11 @@ export async function sourceFromDisplayMedia(audioContext) {
   // deliberately user-controlled -- so forgetting it is the single most likely
   // way this fails. Say exactly which box, and note the surfaces that can never
   // work rather than leaving the user to retry the same silent choice.
+  // The toggle cannot be pre-set by a page -- it is browser chrome and consent
+  // is deliberately the user's -- so leaving it off is the likeliest failure.
   if (stream.getAudioTracks().length === 0) {
     stream.getTracks().forEach((t) => t.stop())
-    throw new Error(
-      'No audio in that share. Pick a tab and tick "Also share tab audio" -- ' +
-      'a window or app share carries no audio at all, and "entire screen" ' +
-      'only carries audio on Windows.'
-    )
+    throw new Error('No audio in that share -- turn on "Share with system audio" and try again.')
   }
   // Video track isn't needed once we have the audio node -- drop it so the
   // browser's screen-share indicator doesn't stay lit for no reason.

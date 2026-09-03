@@ -30,26 +30,28 @@ It uses **Conditional Focus** (`CaptureController.setFocusBehavior`) to stay
 put. Without it Chrome focuses whatever you picked, switching you away from
 Fluoddity at the one moment you want to watch it react.
 
-### What each share surface can actually carry
+### The surface you pick does not matter
 
-| Surface | Audio |
-|---|---|
-| **Chrome tab** | *Also share tab audio* — every platform |
-| **Window / app** | **None, ever.** Chrome captures no per-window audio on any OS |
-| **Entire screen** | *Also share system audio* — Windows/ChromeOS only; silent on macOS |
+Chromium browsers offer three share surfaces — tab, window, entire screen — but
+where a **"Share with system audio"** toggle is present it applies to the whole
+system regardless of which surface is highlighted. So the surface choice buys
+the user nothing here, and the request asks for `displaySurface: 'monitor'`:
+the monitor pane usually has exactly one thing to click, and system audio is
+its natural pairing.
 
-So on macOS a tab is the only surface that works, which is why the request asks
-for `displaySurface: 'browser'` — the picker opens on the tab list rather than
-a pane that would fail silently.
+Browsers differ on which surfaces carry audio at all, and this moves — Brave on
+macOS offers system audio on every pane, while Chrome has historically been far
+more restrictive there. The code therefore states a preference and checks the
+result rather than encoding a platform matrix that would go stale.
 
-**The audio checkbox cannot be pre-ticked.** It is browser chrome and consent is
+**The toggle cannot be pre-set.** It is browser chrome and consent is
 deliberately the user's; no constraint selects it. `systemAudio: 'include'` only
-decides whether the option is *offered*. Forgetting the box is therefore the
-likeliest failure, so the thrown error names the exact checkbox.
+decides whether the option is *offered*. Leaving it off is therefore the
+likeliest failure, so the thrown error names the toggle exactly.
 
-For Ableton, the Spotify desktop app, or anything outside a browser tab, use the
-input-device route with a loopback driver — that is the only path to true
-system audio on macOS.
+A loopback driver (BlackHole, Soundflower) via the input-device route remains
+the alternative, and the only route where a browser offers no system audio at
+all.
 
 The loopback route is the good one for playing your own music: set the system
 output to BlackHole (or Soundflower), then pick that same device as the input
