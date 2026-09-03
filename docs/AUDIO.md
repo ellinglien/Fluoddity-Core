@@ -30,10 +30,26 @@ It uses **Conditional Focus** (`CaptureController.setFocusBehavior`) to stay
 put. Without it Chrome focuses whatever you picked, switching you away from
 Fluoddity at the one moment you want to watch it react.
 
-> On macOS this reaches **tab** audio, not system audio — Chrome cannot capture
-> whole-system audio there (Windows and ChromeOS can). For Ableton, the Spotify
-> desktop app, or anything outside a browser tab, use the input-device route
-> with a loopback driver.
+### What each share surface can actually carry
+
+| Surface | Audio |
+|---|---|
+| **Chrome tab** | *Also share tab audio* — every platform |
+| **Window / app** | **None, ever.** Chrome captures no per-window audio on any OS |
+| **Entire screen** | *Also share system audio* — Windows/ChromeOS only; silent on macOS |
+
+So on macOS a tab is the only surface that works, which is why the request asks
+for `displaySurface: 'browser'` — the picker opens on the tab list rather than
+a pane that would fail silently.
+
+**The audio checkbox cannot be pre-ticked.** It is browser chrome and consent is
+deliberately the user's; no constraint selects it. `systemAudio: 'include'` only
+decides whether the option is *offered*. Forgetting the box is therefore the
+likeliest failure, so the thrown error names the exact checkbox.
+
+For Ableton, the Spotify desktop app, or anything outside a browser tab, use the
+input-device route with a loopback driver — that is the only path to true
+system audio on macOS.
 
 The loopback route is the good one for playing your own music: set the system
 output to BlackHole (or Soundflower), then pick that same device as the input

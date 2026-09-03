@@ -4,288 +4,156 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fluoddity</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; overflow: hidden; }
-        canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-        }
-        #controls {
-            position: fixed;
-            top: 12px;
-            right: 12px;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            align-items: flex-end;
-        }
+        body { background: #000; color: #9a9a9a; overflow: hidden; font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace; -webkit-font-smoothing: antialiased; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+
+        /* ── The sidebar. Overlays the canvas: the simulation keeps the whole
+           window and never resizes when the sidebar shows or hides. ── */
         #controls-left {
-            position: fixed;
-            top: 12px;
-            left: 12px;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            align-items: flex-start;
+            position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 41;
+            background: rgba(0,0,0,.72); border-right: 1px solid #242424;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            padding: 14px 14px 18px; display: flex; flex-direction: column; gap: 13px;
+            overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
         }
-        .control-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        #controls select, #controls button, #controls-left select, #controls-left button, .dropdown-trigger {
-            padding: 6px 12px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #ccc;
-            border: 1px solid #555;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        #controls select:hover, #controls button:hover, #controls-left select:hover, #controls-left button:hover, .dropdown-trigger:hover {
-            border-color: #999;
-        }
-        #controls select option, #controls-left select option { background: #222; color: #ccc; }
-        .control-label {
-            font-family: monospace;
-            font-size: 14px;
-            color: #aaa;
-        }
+        #controls-left::-webkit-scrollbar { width: 0; height: 0; }
 
-        /* Slider rows */
-        .slider-row {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            font-family: monospace;
-            font-size: 13px;
-            color: #aaa;
-        }
-        .slider-row label {
-            min-width: 80px;
-            text-align: right;
-        }
-        .slider-row input[type="range"] {
-            width: 120px;
-            accent-color: #888;
-        }
-        .slider-row .slider-value {
-            min-width: 32px;
-            text-align: left;
-            color: #ccc;
-        }
+        .side-head { display: flex; align-items: center; justify-content: space-between; }
+        .wordmark { font-size: 12px; letter-spacing: .16em; color: #8e8e8e; }
 
-        /* Mode toggle button */
-        #mode-toggle {
-            font-size: 12px;
-        }
-        #mode-toggle.draw-mode {
-            border-color: #e94;
-            color: #e94;
-        }
-
-        /* Draw sliders container */
-        #draw-controls {
-            display: none;
-        }
-        #draw-controls.visible {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        /* Custom dropdown for config preview */
-        .custom-dropdown {
-            position: relative;
-        }
-        .dropdown-trigger {
-            min-width: 160px;
-            text-align: left;
-        }
-        .dropdown-menu {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 2px;
-            background: rgba(20, 20, 20, 0.95);
-            border: 1px solid #555;
-            border-radius: 4px;
-            max-height: 400px;
-            overflow-y: auto;
-            min-width: 200px;
-            z-index: 20;
-        }
-        .custom-dropdown.open .dropdown-menu {
-            display: block;
-        }
-        .dropdown-item {
-            padding: 6px 12px;
-            font-family: monospace;
-            font-size: 14px;
-            color: #ccc;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .dropdown-item:hover {
-            background: rgba(100, 100, 100, 0.4);
-        }
-        .dropdown-item.active {
-            color: #fff;
-            background: rgba(80, 80, 120, 0.4);
-        }
-
-        /* Controls popup overlay */
-        #controls-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: 50;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-        #controls-overlay.hidden {
-            display: none;
-        }
-        #controls-popup {
-            background: rgba(20, 20, 20, 0.95);
-            border: 1px solid #555;
-            border-radius: 8px;
-            padding: 28px 36px;
-            max-width: 460px;
-            font-family: monospace;
-            color: #ccc;
-            pointer-events: none;
-        }
-        #controls-popup h2 {
-            margin: 0 0 16px 0;
-            font-size: 18px;
-            color: #fff;
-            text-align: center;
-        }
-        #controls-popup .control-line {
-            margin-bottom: 8px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        #controls-popup .control-line .key {
-            color: #e94;
-        }
-        #controls-popup .dismiss-hint {
-            margin-top: 18px;
-            text-align: center;
-            font-size: 12px;
-            color: #777;
-        }
-
-        /* Controls button at top-center */
+        /* The Controls modal trigger lives in the sidebar header now. */
         #controls-button {
-            position: fixed;
-            top: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            padding: 6px 16px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #ccc;
-            border: 1px solid #555;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 14px;
-            cursor: pointer;
+            background: none; border: 0; border-bottom: 1px solid #333; padding: 0;
+            font-family: inherit; font-size: 11px; color: #5c5c5c; cursor: pointer;
         }
-        #controls-button:hover {
-            border-color: #999;
+        #controls-button:hover { color: #fff; border-bottom-color: #fff; }
+
+        .sec { display: flex; flex-direction: column; gap: 9px; }
+        .sechd { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+        .sec.shut > *:not(.sechd) { display: none; }
+        .sec.shut .caret { transform: rotate(-90deg); }
+        .caret { display: inline-block; transition: transform .14s; color: #4a4a4a; font-size: 9px; }
+        .hdr { font-size: 10px; letter-spacing: .16em; color: #5c5c5c; text-transform: uppercase; }
+        .rule { height: 1px; background: #242424; }
+        .rule.push { margin-top: auto; }
+
+        .control-row { display: flex; gap: 8px; align-items: center; }
+        .control-row.spread { justify-content: space-between; }
+        .btn-pair { display: flex; gap: 6px; }
+        .btn-pair > button { flex: 1; justify-content: center; }
+
+        #controls select, #controls button,
+        #controls-left select, #controls-left button:not(#controls-button), .dropdown-trigger {
+            padding: 7px 12px; background: transparent; color: #d8d8d8;
+            border: 1px solid #3f3f3f; border-radius: 2px;
+            font-family: inherit; font-size: 13px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px;
         }
+        #controls select:hover, #controls button:hover,
+        #controls-left select:hover, #controls-left button:not(#controls-button):hover,
+        .dropdown-trigger:hover { border-color: #8a8a8a; color: #fff; }
+        #controls select option, #controls-left select option { background: #0a0a0a; color: #d8d8d8; }
+        .control-label { font-size: 12px; color: #9a9a9a; white-space: nowrap; }
+
+        /* Audio is the reason to show this to anyone: give it the one filled button. */
+        #controls-left button#audio-capture-button { background: #fff; color: #000; border-color: #fff; justify-content: center; }
+        #controls-left button#audio-capture-button:hover { background: #dcdcdc; border-color: #dcdcdc; color: #000; }
+
+        .slider-row { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #9a9a9a; }
+        .slider-row label { min-width: 74px; text-align: right; white-space: nowrap; }
+        .slider-row .slider-value { min-width: 32px; text-align: left; color: #fff; }
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none; background: transparent;
+            width: 116px; height: 14px; cursor: pointer; margin: 0; flex: none;
+        }
+        input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: #2e2e2e; }
+        input[type="range"]::-moz-range-track { height: 2px; background: #2e2e2e; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 2px; height: 10px; background: #fff; margin-top: -4px; border: 0; border-radius: 0; }
+        input[type="range"]::-moz-range-thumb { width: 2px; height: 10px; background: #fff; border: 0; border-radius: 0; }
+
+        /* Checked state is a white square with an X cut out of it -- a filled
+           square alone read as ambiguous at this size. */
+        input[type="checkbox"] {
+            -webkit-appearance: none; appearance: none; position: relative;
+            width: 12px; height: 12px; border: 1px solid #4a4a4a;
+            background: transparent; cursor: pointer; margin: 0; flex: none;
+        }
+        input[type="checkbox"]:checked { background: #fff; border-color: #fff; }
+        input[type="checkbox"]:checked::before,
+        input[type="checkbox"]:checked::after {
+            content: ''; position: absolute; left: 1px; right: 1px; top: 4px;
+            height: 1.5px; background: #000;
+        }
+        input[type="checkbox"]:checked::before { transform: rotate(45deg); }
+        input[type="checkbox"]:checked::after { transform: rotate(-45deg); }
+
+        #mode-toggle.draw-mode { background: #fff; color: #000; border-color: #fff; }
+
+        /* Draw sliders sit on the right, out of the sidebar -- they only exist
+           while drawing, and belong near the cursor rather than in the stack. */
+        #controls { position: fixed; top: 14px; right: 14px; z-index: 41; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+        #draw-controls { display: none; }
+        #draw-controls.visible {
+            display: flex; flex-direction: column; gap: 9px;
+            background: rgba(0,0,0,.72); border: 1px solid #242424;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 11px;
+        }
+
+        .custom-dropdown { position: relative; }
+        .dropdown-trigger { width: 100%; text-align: left; justify-content: space-between; }
+        .dropdown-menu {
+            display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 2px;
+            background: rgba(0,0,0,.94); border: 1px solid #3f3f3f;
+            max-height: 400px; overflow-y: auto; z-index: 20;
+        }
+        .custom-dropdown.open .dropdown-menu { display: block; }
+        .dropdown-item { padding: 6px 10px; font-size: 12px; color: #d8d8d8; cursor: pointer; white-space: nowrap; }
+        .dropdown-item:hover { background: rgba(255,255,255,.08); }
+        .dropdown-item.active { color: #fff; background: rgba(255,255,255,.12); }
+
+        #controls-overlay {
+            position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.72);
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        #controls-overlay.hidden { display: none; }
+        #controls-popup {
+            background: #060606; border: 1px solid #2a2a2a; padding: 28px 32px 22px;
+            width: 460px; max-width: calc(100vw - 40px); color: #9a9a9a; pointer-events: none;
+        }
+        #controls-popup h2 { margin: 0 0 14px; font-size: 10px; letter-spacing: .18em; color: #5c5c5c; text-transform: uppercase; font-weight: 400; }
+        #controls-popup .control-line { margin-bottom: 9px; font-size: 12px; line-height: 1.5; }
+        #controls-popup .control-line .key {
+            display: inline-block; padding: 2px 5px; margin-right: 4px;
+            border: 1px solid #3f3f3f; border-radius: 2px; font-size: 10.5px; color: #d8d8d8;
+        }
+        #controls-popup .dismiss-hint { margin-top: 16px; text-align: center; font-size: 11px; color: #4a4a4a; }
 
         #error-display {
-            position: fixed;
-            bottom: 12px;
-            left: 12px;
-            z-index: 10;
-            color: #f44;
-            font-family: monospace;
-            font-size: 12px;
-            max-width: 80vw;
-            max-height: 50vh;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 8px 12px;
-            border-radius: 4px;
-            border: 1px solid #f44;
-            display: none;
+            position: fixed; bottom: 12px; left: 296px; z-index: 10; color: #fff;
+            font-family: inherit; font-size: 12px; max-width: 60vw; max-height: 50vh;
+            overflow-y: auto; white-space: pre-wrap; background: rgba(0,0,0,.9);
+            padding: 8px 12px; border: 1px solid #666; display: none;
         }
 
         #audio-debug-panel {
-            position: fixed;
-            bottom: 12px;
-            right: 12px;
-            z-index: 10;
-            color: #9c9;
-            font-family: monospace;
-            font-size: 12px;
-            white-space: pre;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 8px 12px;
-            border-radius: 4px;
-            border: 1px solid #4a4;
-            display: none;
+            position: fixed; bottom: 14px; right: 14px; z-index: 10; color: #d8d8d8;
+            font-family: inherit; font-size: 11px; white-space: pre;
+            background: rgba(0,0,0,.8); padding: 9px 12px; border: 1px solid #262626; display: none;
         }
 
-        /* Press H to toggle -- "just the images," no UI/HUD at all. Extra
-           selector rather than reusing each panel's own display toggle
-           (e.g. audio-debug-panel's own .style.display) so this stays a
-           single independent switch that always wins regardless of
-           whatever state each panel happens to already be in. */
-        /* Mix panel -- native <details> for the show/hide interaction
-           itself (no JS needed for that part), styled to match the rest
-           of #controls-left's dark/monospace look. */
-        #audio-mix-details {
-            font-family: monospace;
-            font-size: 12px;
-            color: #aaa;
-        }
-        #audio-mix-details summary {
-            cursor: pointer;
-            padding: 4px 0;
-        }
-        #audio-mix-details summary:hover {
-            color: #ccc;
-        }
-        .audio-mix-row {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            margin: 4px 0;
-        }
-        .audio-mix-row label {
-            min-width: 92px;
-            text-align: right;
-        }
-        .audio-mix-row select {
-            padding: 2px 4px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #ccc;
-            border: 1px solid #555;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-        }
-        .audio-mix-row input[type="range"] {
-            width: 80px;
-            accent-color: #888;
-        }
-        .audio-mix-row .mix-amount-value {
-            min-width: 32px;
-        }
+        #audio-mix-details { font-size: 11px; color: #8e8e8e; }
+        #audio-mix-details summary { cursor: pointer; padding: 2px 0; list-style: none; color: #5c5c5c; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+        #audio-mix-details summary::-webkit-details-marker { display: none; }
+        #audio-mix-details summary:hover { color: #fff; }
+        #audio-mix-details > *:not(summary) { margin-top: 9px; }
+        .audio-mix-row { display: flex; gap: 7px; align-items: center; margin: 7px 0; font-size: 11px; }
+        .audio-mix-row label { min-width: 58px; text-align: right; }
+        .audio-mix-row select { padding: 2px 5px; font-size: 11px; }
+        .audio-mix-row input[type="range"] { width: 62px; }
+        .audio-mix-row .mix-amount-value { min-width: 28px; color: #fff; }
 
         body.ui-hidden #controls,
         body.ui-hidden #controls-left,
@@ -298,80 +166,45 @@
     </style>
 </head>
 <body>
-    <div id="controls">
-        <div class="control-row">
-            <span class="control-label">Presets:</span>
+    <canvas id="canvas"></canvas>
+    <div id="controls-left">
+        <div class="side-head">
+            <span class="wordmark">FLUODDITY</span>
+            <button id="controls-button">controls</button>
+        </div>
+
+        <div class="sec">
+            <div class="sechd"><span class="hdr">Preset</span><span class="caret">&#9662;</span></div>
             <div class="custom-dropdown" id="preset-dropdown">
                 <button class="dropdown-trigger" id="preset-trigger" title="Presets">Loading...</button>
                 <div class="dropdown-menu" id="preset-menu"></div>
             </div>
-            <button id="undo-button" title="Reverses the most recent particle selection (left-click) or seed change (G)">Undo (Right Click)</button>
-            <button id="generate-preset-button" title="Generate a new preset from the existing ones -- a fresh random rule, an aggressively mutated variant of one preset, or a crossover blend of two. Switches to it immediately and adds it to the Presets dropdown. Saved in this browser so it survives a reload, but only here -- not shared with anyone else visiting the link. (N)">
-                🧬 generate
-            </button>
-        </div>
-        <div class="control-row">
-            <span class="control-label">World size:</span>
-            <select id="world-size-selector" title="World Size / Quality">
-                <option value="0.08" selected>.08 (Potato/Phone)</option>
-                <option value="0.25">.25 (Low)</option>
-                <option value="0.5">.5 (Medium)</option>
-                <option value="1.0">1.0 (Large)</option>
-            </select>
-            <button id="reset-button">Reset (R)</button>
-        </div>
-        <div class="slider-row">
-            <label>Brightness</label>
-            <input type="range" id="brightness-slider" min="0.001" max="1.0" value="0.4" step="0.001">
-            <span class="slider-value" id="brightness-value">0.400</span>
-        </div>
-        <div class="slider-row">
-            <label>Speed</label>
-            <input type="range" id="physics-freq" min="1" max="40" value="1" step="1"
-                   title="This controls how many physics updates we do per frame. Careful: this can hurt performance.">
-            <span class="slider-value" id="physics-freq-value">1</span>
-        </div>
-        <div class="control-row">
-            <button id="mode-toggle" title="Mouse mode: In Select Particle mode, click on a particle to adopt it's behavior (with mutations)">Select Particle (T)</button>
-        </div>
-        <div id="draw-controls">
-            <div class="slider-row">
-                <label>Draw Size</label>
-                <input type="range" id="draw-size" min="0.01" max="0.5" value="0.1" step="0.001">
-                <span class="slider-value" id="draw-size-value">0.100</span>
-            </div>
-            <div class="slider-row">
-                <label>Draw Power</label>
-                <input type="range" id="draw-power" min="0.1" max="5.0" value="1.0" step="0.01">
-                <span class="slider-value" id="draw-power-value">1.00</span>
+            <div class="btn-pair">
+                <button id="undo-button" title="Reverses the most recent particle selection (left-click) or seed change (G)">Undo</button>
+                <button id="generate-preset-button" title="Generate a new preset from the existing ones -- a fresh random rule, an aggressively mutated variant of one preset, or a crossover blend of two. Switches to it immediately and adds it to the Presets dropdown. Saved in this browser so it survives a reload, but only here -- not shared with anyone else visiting the link. (N)">Generate</button>
             </div>
         </div>
-    </div>
-    <div id="controls-left">
-        <div class="control-row">
+
+        <div class="rule"></div>
+
+        <div class="sec">
+            <div class="sechd"><span class="hdr">Simulation</span><span class="caret">&#9662;</span></div>
             <button id="initial-conditions-toggle">Starting Positions: Grid</button>
-        </div>
-        <div class="control-row">
             <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"
                    id="cohort-fences-row"
                    title="Grid starting positions only. When on, each cohort is gently pulled back toward its own starting cell whenever it strays too far -- keeps cohorts as distinct, mostly-separate colonies instead of letting them fully intermix over time.">
                 <input type="checkbox" id="cohort-fences-toggle">
                 cohort fences
             </label>
-        </div>
-        <div class="slider-row">
-            <label>Mutation Scale</label>
-            <input type="range" id="mutation-scale-slider" min="0" max="1.0" value="0.1" step="0.001"
+            <div class="slider-row">
+                <label>Mutation</label>
+                <input type="range" id="mutation-scale-slider" min="0" max="1.0" value="0.1" step="0.001"
                    title="At 0 every species has the same behavior, at 1 they are nearly random">
-            <span class="slider-value" id="mutation-scale-value">0.100</span>
-        </div>
-        <div class="control-row">
-            <button id="randomize-behavior-button"
-                    title="Give every cohort its own independently-generated behavior, instead of variations on one shared rule (which is all Mutation Scale ever does, however high). Most striking with several cohorts and Cohort Fences on -- each colony ends up a genuinely different species rather than a family resemblance. (B)">Randomize Behavior</button>
-        </div>
-        <div class="control-row">
-            <span class="control-label">Cohorts:</span>
-            <select id="cohorts-selector" title="The number of cohorts determines how many distinct 'species' exist at once">
+                <span class="slider-value" id="mutation-scale-value">0.100</span>
+            </div>
+            <div class="control-row spread">
+                <span class="control-label">Cohorts</span>
+                <select id="cohorts-selector" title="The number of cohorts determines how many distinct 'species' exist at once">
                 <option value="1">1</option>
                 <option value="4">4</option>
                 <option value="9">9</option>
@@ -379,27 +212,60 @@
                 <option value="36">36</option>
                 <option value="64">64</option>
             </select>
+            </div>
+            <button id="randomize-behavior-button"
+                    title="Give every cohort its own independently-generated behavior, instead of variations on one shared rule (which is all Mutation Scale ever does, however high). Most striking with several cohorts and Cohort Fences on -- each colony ends up a genuinely different species rather than a family resemblance. (B)">Randomize Behavior</button>
         </div>
-        <div class="control-row">
-            <span class="control-label">Audio:</span>
-            <button id="audio-capture-button" title="React to whatever's playing in another tab or app -- pick the source and tick &quot;Also share tab audio&quot; in the dialog. No setup needed.">Capture App Audio</button>
+
+        <div class="rule"></div>
+
+        <div class="sec">
+            <div class="sechd"><span class="hdr">Render</span><span class="caret">&#9662;</span></div>
+            <div class="control-row spread">
+                <span class="control-label">World size</span>
+                <select id="world-size-selector" title="World Size / Quality">
+                <option value="0.08" selected>.08 (Potato/Phone)</option>
+                <option value="0.25">.25 (Low)</option>
+                <option value="0.5">.5 (Medium)</option>
+                <option value="1.0">1.0 (Large)</option>
+            </select>
+            </div>
+            <div class="slider-row">
+                <label>Brightness</label>
+                <input type="range" id="brightness-slider" min="0.001" max="1.0" value="0.4" step="0.001">
+                <span class="slider-value" id="brightness-value">0.400</span>
+            </div>
+            <div class="slider-row">
+                <label>Speed</label>
+                <input type="range" id="physics-freq" min="1" max="40" value="1" step="1"
+                   title="This controls how many physics updates we do per frame. Careful: this can hurt performance.">
+                <span class="slider-value" id="physics-freq-value">1</span>
+            </div>
+            <div class="btn-pair">
+                <button id="reset-button" title="Reset the simulation (R)">Reset</button>
+                <button id="mode-toggle" title="Mouse mode: In Select Particle mode, click on a particle to adopt it's behavior (with mutations)">Select</button>
+            </div>
         </div>
-        <div class="control-row">
-            <button id="audio-file-button" title="Load a local audio file and drive the sim from it">Load File</button>
-            <input type="file" id="audio-file-input" accept="audio/*" style="display: none;">
-        </div>
-        <div class="control-row">
+
+        <div class="rule push"></div>
+
+        <div class="sec">
+            <div class="sechd"><span class="hdr">Audio</span><span class="caret">&#9662;</span></div>
+            <button id="audio-capture-button" title="React to whatever is playing in another browser tab -- pick the tab and tick &quot;Also share tab audio&quot;. No setup needed. For Ableton, the Spotify app, or anything outside the browser, use an input device with a loopback driver instead -- Chrome cannot capture app or system audio on macOS.">Capture Tab Audio</button>
+            <div class="btn-pair">
+                <button id="audio-file-button" title="Load a local audio file and drive the sim from it">Load File</button>
+                <input type="file" id="audio-file-input" accept="audio/*" style="display: none;">
+            </div>
             <select id="audio-input-selector"
                     title="Pick a mic, or a virtual loopback device (e.g. BlackHole/Soundflower set as your system's output) to drive the sim from whatever's playing anywhere on your machine. Opens on click -- device names only show up after the first permission prompt.">
                 <option value="">Select input device...</option>
             </select>
-        </div>
-        <div class="control-row" id="audio-status-row" style="display: none;">
+            <div class="control-row" id="audio-status-row" style="display: none;">
             <span class="control-label" id="audio-status">audio: off</span>
             <button id="audio-stop-button" title="Stop audio reactivity, revert to the plain preset">Stop</button>
         </div>
         <div class="slider-row">
-            <label>Audio Strength</label>
+            <label>Strength</label>
             <input type="range" id="audio-strength-slider" min="0" max="2.0" value="0.25" step="0.01"
                    title="Scales how much the audio bands push the physics params -- 0 disables the effect without stopping analysis">
             <span class="slider-value" id="audio-strength-value">0.25</span>
@@ -408,7 +274,7 @@
             <summary>customize reactions</summary>
             <div class="control-row">
                 <button id="audio-randomize-button" title="Randomize which band drives each reaction below (and how strongly), plus Glow -- a quick way to explore combinations without tweaking each row by hand">
-                    🎲 randomize
+                    Randomize
                 </button>
             </div>
             <div id="audio-mix-rows"><!-- populated by main.js from audio.js's DEFAULT_ROUTING --></div>
@@ -451,7 +317,7 @@
                 </label>
             </div>
             <div class="slider-row">
-                <label>Beat Delay (ms)</label>
+                <label>Beat delay</label>
                 <input type="range" id="audio-beat-delay-slider" min="0" max="400" step="10" value="0"
                        title="For LIVE input specifically (mic/loopback) -- pushes a bar-quantized transition's commit later by this many milliseconds, tunable by ear so the reaction lands exactly on the beat you actually hear rather than the moment it's analytically detected (which always lags the true attack a little, plus your own speaker/output latency). File playback doesn't need this.">
                 <span class="slider-value" id="audio-beat-delay-value">0ms</span>
@@ -466,9 +332,24 @@
                 </label>
             </div>
         </details>
+        </div>
     </div>
-    <canvas id="canvas"></canvas>
-    <button id="controls-button">Controls</button>
+
+    <div id="controls">
+<div id="draw-controls">
+            <div class="slider-row">
+                <label>Draw Size</label>
+                <input type="range" id="draw-size" min="0.01" max="0.5" value="0.1" step="0.001">
+                <span class="slider-value" id="draw-size-value">0.100</span>
+            </div>
+            <div class="slider-row">
+                <label>Draw Power</label>
+                <input type="range" id="draw-power" min="0.1" max="5.0" value="1.0" step="0.01">
+                <span class="slider-value" id="draw-power-value">1.00</span>
+            </div>
+        </div>
+    </div>
+
     <div id="controls-overlay" class="hidden">
         <div id="controls-popup">
             <h2>Controls</h2>
@@ -488,6 +369,12 @@
     <div id="calibration-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#000;display:flex;align-items:center;justify-content:center;font-family:monospace;color:#888;font-size:16px;">Calibrating...</div>
     <div id="error-display"></div>
     <pre id="audio-debug-panel"></pre>
+    <script>
+      // Collapsible sidebar sections. Plain DOM, no module needed.
+      document.querySelectorAll('#controls-left .sechd').forEach((h) => {
+        h.addEventListener('click', () => h.parentElement.classList.toggle('shut'));
+      });
+    </script>
     <script type="module" src="main.js"></script>
 </body>
 </html>

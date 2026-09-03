@@ -144,7 +144,20 @@ export async function listAudioInputDevices() {
  * @returns {Promise<AudioNode>}
  */
 export async function sourceFromDisplayMedia(audioContext) {
-  const options = { video: true, audio: true }
+  const options = {
+    // Open the picker on the TAB list. Of the three surfaces Chrome offers,
+    // only a tab carries audio on every platform: a window/app surface has no
+    // audio at all, anywhere, and "entire screen" only carries system audio on
+    // Windows/ChromeOS -- on macOS it is silent. Landing the user on the one
+    // pane that can actually work saves a silent failure.
+    video: { displaySurface: 'browser' },
+    audio: true,
+    // Nothing to gain from sharing Fluoddity with itself.
+    selfBrowserSurface: 'exclude',
+    // Where system audio IS available (Windows/ChromeOS), offer it.
+    systemAudio: 'include',
+    surfaceSwitching: 'include'
+  }
 
   // Chrome focuses the captured surface by default, so picking a tab or window
   // in the share dialog switches you straight to it -- exactly the wrong moment
@@ -167,8 +180,17 @@ export async function sourceFromDisplayMedia(audioContext) {
     try { controller.setFocusBehavior('no-focus-change') } catch (e) { /* too late */ }
   }
 
+  // The audio checkbox cannot be pre-ticked by a page -- it is browser chrome,
+  // deliberately user-controlled -- so forgetting it is the single most likely
+  // way this fails. Say exactly which box, and note the surfaces that can never
+  // work rather than leaving the user to retry the same silent choice.
   if (stream.getAudioTracks().length === 0) {
-    throw new Error('No audio track in the shared source -- did you check "share audio"?')
+    stream.getTracks().forEach((t) => t.stop())
+    throw new Error(
+      'No audio in that share. Pick a tab and tick "Also share tab audio" -- ' +
+      'a window or app share carries no audio at all, and "entire screen" ' +
+      'only carries audio on Windows.'
+    )
   }
   // Video track isn't needed once we have the audio node -- drop it so the
   // browser's screen-share indicator doesn't stay lit for no reason.
