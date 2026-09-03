@@ -223,6 +223,78 @@
             border: 1px solid #f44;
             display: none;
         }
+
+        #audio-debug-panel {
+            position: fixed;
+            bottom: 12px;
+            right: 12px;
+            z-index: 10;
+            color: #9c9;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #4a4;
+            display: none;
+        }
+
+        /* Press H to toggle -- "just the images," no UI/HUD at all. Extra
+           selector rather than reusing each panel's own display toggle
+           (e.g. audio-debug-panel's own .style.display) so this stays a
+           single independent switch that always wins regardless of
+           whatever state each panel happens to already be in. */
+        /* Mix panel -- native <details> for the show/hide interaction
+           itself (no JS needed for that part), styled to match the rest
+           of #controls-left's dark/monospace look. */
+        #audio-mix-details {
+            font-family: monospace;
+            font-size: 12px;
+            color: #aaa;
+        }
+        #audio-mix-details summary {
+            cursor: pointer;
+            padding: 4px 0;
+        }
+        #audio-mix-details summary:hover {
+            color: #ccc;
+        }
+        .audio-mix-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin: 4px 0;
+        }
+        .audio-mix-row label {
+            min-width: 92px;
+            text-align: right;
+        }
+        .audio-mix-row select {
+            padding: 2px 4px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #ccc;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .audio-mix-row input[type="range"] {
+            width: 80px;
+            accent-color: #888;
+        }
+        .audio-mix-row .mix-amount-value {
+            min-width: 32px;
+        }
+
+        body.ui-hidden #controls,
+        body.ui-hidden #controls-left,
+        body.ui-hidden #controls-button,
+        body.ui-hidden #error-display,
+        body.ui-hidden #audio-debug-panel,
+        body.ui-hidden #controls-overlay {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -234,6 +306,9 @@
                 <div class="dropdown-menu" id="preset-menu"></div>
             </div>
             <button id="undo-button" title="Reverses the most recent particle selection (left-click) or seed change (G)">Undo (Right Click)</button>
+            <button id="generate-preset-button" title="Generate a new preset from the existing ones -- a fresh random rule, an aggressively mutated variant of one preset, or a crossover blend of two. Switches to it immediately and adds it to the Presets dropdown. Saved in this browser so it survives a reload, but only here -- not shared with anyone else visiting the link. (N)">
+                🧬 generate
+            </button>
         </div>
         <div class="control-row">
             <span class="control-label">World size:</span>
@@ -276,11 +351,23 @@
         <div class="control-row">
             <button id="initial-conditions-toggle">Starting Positions: Grid</button>
         </div>
+        <div class="control-row">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"
+                   id="cohort-fences-row"
+                   title="Grid starting positions only. When on, each cohort is gently pulled back toward its own starting cell whenever it strays too far -- keeps cohorts as distinct, mostly-separate colonies instead of letting them fully intermix over time.">
+                <input type="checkbox" id="cohort-fences-toggle">
+                cohort fences
+            </label>
+        </div>
         <div class="slider-row">
             <label>Mutation Scale</label>
             <input type="range" id="mutation-scale-slider" min="0" max="1.0" value="0.1" step="0.001"
                    title="At 0 every species has the same behavior, at 1 they are nearly random">
             <span class="slider-value" id="mutation-scale-value">0.100</span>
+        </div>
+        <div class="control-row">
+            <button id="randomize-behavior-button"
+                    title="Give every cohort its own independently-generated behavior, instead of variations on one shared rule (which is all Mutation Scale ever does, however high). Most striking with several cohorts and Cohort Fences on -- each colony ends up a genuinely different species rather than a family resemblance. (B)">Randomize Behavior</button>
         </div>
         <div class="control-row">
             <span class="control-label">Cohorts:</span>
@@ -293,6 +380,92 @@
                 <option value="64">64</option>
             </select>
         </div>
+        <div class="control-row">
+            <span class="control-label">Audio:</span>
+            <button id="audio-capture-button" title="React to whatever's playing in another tab or app -- pick the source and tick &quot;Also share tab audio&quot; in the dialog. No setup needed.">Capture App Audio</button>
+        </div>
+        <div class="control-row">
+            <button id="audio-file-button" title="Load a local audio file and drive the sim from it">Load File</button>
+            <input type="file" id="audio-file-input" accept="audio/*" style="display: none;">
+        </div>
+        <div class="control-row">
+            <select id="audio-input-selector"
+                    title="Pick a mic, or a virtual loopback device (e.g. BlackHole/Soundflower set as your system's output) to drive the sim from whatever's playing anywhere on your machine. Opens on click -- device names only show up after the first permission prompt.">
+                <option value="">Select input device...</option>
+            </select>
+        </div>
+        <div class="control-row" id="audio-status-row" style="display: none;">
+            <span class="control-label" id="audio-status">audio: off</span>
+            <button id="audio-stop-button" title="Stop audio reactivity, revert to the plain preset">Stop</button>
+        </div>
+        <div class="slider-row">
+            <label>Audio Strength</label>
+            <input type="range" id="audio-strength-slider" min="0" max="2.0" value="0.25" step="0.01"
+                   title="Scales how much the audio bands push the physics params -- 0 disables the effect without stopping analysis">
+            <span class="slider-value" id="audio-strength-value">0.25</span>
+        </div>
+        <details id="audio-mix-details">
+            <summary>customize reactions</summary>
+            <div class="control-row">
+                <button id="audio-randomize-button" title="Randomize which band drives each reaction below (and how strongly), plus Glow -- a quick way to explore combinations without tweaking each row by hand">
+                    🎲 randomize
+                </button>
+            </div>
+            <div id="audio-mix-rows"><!-- populated by main.js from audio.js's DEFAULT_ROUTING --></div>
+            <div class="slider-row">
+                <label>Glow</label>
+                <input type="range" id="audio-glow-slider" min="0" max="0.4" step="0.01" value="0.08"
+                       title="Pulses overall brightness with the music's overall loudness -- a simple, single global cue that reads clearly as 'reacting to sound' at a glance, unlike the more abstract per-param reactions above">
+                <span class="slider-value" id="audio-glow-value">0.08</span>
+            </div>
+            <div class="slider-row">
+                <label>Hue Shift</label>
+                <input type="range" id="audio-hue-shift-slider" min="0" max="1" step="0.01" value="0.15"
+                       title="The whole color palette continuously drifts around the color wheel -- faster while the music is louder/more energetic, barely moving when it's quiet. Same global, single-channel cue as Glow, just color instead of brightness.">
+                <span class="slider-value" id="audio-hue-shift-value">0.15</span>
+            </div>
+            <div class="slider-row">
+                <label>Sensitivity</label>
+                <input type="range" id="audio-sensitivity-slider" min="1.15" max="3" step="0.05" value="2.2"
+                       title="Controls how OFTEN a transition fires (not how strong -- see Transitions below for that). How big a jump in loudness counts as a 'transition' -- lower = triggers on smaller changes (more transitions, easy to false-trigger on ordinary beat-to-beat dynamics); higher = only huge jumps (a real drop) trigger. There's also a hard 6s floor between transitions no matter what this is set to.">
+                <span class="slider-value" id="audio-sensitivity-value">2.20</span>
+            </div>
+            <div class="slider-row">
+                <label>Transitions</label>
+                <input type="range" id="audio-transition-slider" min="0" max="4" step="0.1" value="0.5"
+                       title="Controls how STRONG a transition is once it fires (not how often -- see Sensitivity above for that). How much extra a detected transition (a drop, a quiet-to-loud change) amplifies the reactions above, before fluidly easing back -- 0 disables the extra amplification only, doesn't stop transitions from firing (or from swapping the preset if 'mutate on transition' is on)">
+                <span class="slider-value" id="audio-transition-value">0.5</span>
+            </div>
+            <div class="control-row">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"
+                       title="On a detected transition, generate a brand new preset (same as the 🎲 generate button -- a fresh random rule, an aggressively mutated variant, or a crossover) instead of just re-seeding the current one -- a much bigger, more dramatic change than how hard the current look is reacting. Capped to at most once a minute, separate from and much longer than Sensitivity/the 6s transition floor -- generating a whole new preset is disruptive enough that it stays rare even when transitions themselves aren't">
+                    <input type="checkbox" id="audio-mutate-on-transition" checked>
+                    mutate on transition
+                </label>
+            </div>
+            <div class="control-row">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"
+                       title="Wait for the next bar (every 4th detected beat) to actually fire a detected transition, instead of the instant it's detected -- keeps transitions landing on the music instead of at an arbitrary mid-bar moment. Needs a confident BPM to do anything; falls back to firing immediately without one">
+                    <input type="checkbox" id="audio-quantize-to-bar" checked>
+                    quantize to bar
+                </label>
+            </div>
+            <div class="slider-row">
+                <label>Beat Delay (ms)</label>
+                <input type="range" id="audio-beat-delay-slider" min="0" max="400" step="10" value="0"
+                       title="For LIVE input specifically (mic/loopback) -- pushes a bar-quantized transition's commit later by this many milliseconds, tunable by ear so the reaction lands exactly on the beat you actually hear rather than the moment it's analytically detected (which always lags the true attack a little, plus your own speaker/output latency). File playback doesn't need this.">
+                <span class="slider-value" id="audio-beat-delay-value">0ms</span>
+            </div>
+            <div class="control-row">
+                <span class="control-label">BPM:</span>
+                <span id="audio-bpm-value">--</span>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;"
+                       title="Scales the Speed slider's effective value by (detected bpm / 120) -- faster tracks speed the physics up, slower tracks slow it down. Needs a few seconds of a clear beat before it reports a bpm at all; the Speed slider itself never changes, only the effective speed used">
+                    <input type="checkbox" id="audio-bpm-speed-enabled" checked>
+                    adjust speed
+                </label>
+            </div>
+        </details>
     </div>
     <canvas id="canvas"></canvas>
     <button id="controls-button">Controls</button>
@@ -305,12 +478,16 @@
             <div class="control-line"><span class="key">E / Q</span> or <span class="key">Scroll</span> to zoom</div>
             <div class="control-line"><span class="key">SPACE</span> to pause</div>
             <div class="control-line"><span class="key">G</span> to randomize mutations (slider controls mutation power)</div>
+            <div class="control-line"><span class="key">N</span> to generate a new preset</div>
+            <div class="control-line"><span class="key">B</span> to randomize behavior (each cohort gets an independent rule, not a shared one)</div>
             <div class="control-line"><span class="key">T</span> to toggle drawing mode</div>
+            <div class="control-line"><span class="key">H</span> to hide all UI (just the images)</div>
             <div class="dismiss-hint">Click anywhere to close</div>
         </div>
     </div>
     <div id="calibration-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:#000;display:flex;align-items:center;justify-content:center;font-family:monospace;color:#888;font-size:16px;">Calibrating...</div>
     <div id="error-display"></div>
+    <pre id="audio-debug-panel"></pre>
     <script type="module" src="main.js"></script>
 </body>
 </html>

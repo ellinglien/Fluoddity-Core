@@ -392,6 +392,7 @@ export class ParticleSystem {
         tryset(gl, prog, 'entity_tex_width', c.entityTexWidth);
         tryset(gl, prog, 'sqrt_world_size', c.sqrtWorldSize, 'float');
         tryset(gl, prog, 'initial_conditions', this.config.initial_conditions || 0);
+        tryset(gl, prog, 'cohort_fences', this.config.cohort_fences ? 1 : 0);
 
         gl.bindVertexArray(this.fullscreenQuadVAO);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -464,7 +465,7 @@ export class ParticleSystem {
         this.canvasPing = writeIdx;
     }
 
-    renderDisplay(fancyCamera, camera, brightness) {
+    renderDisplay(fancyCamera, camera, brightness, hueShift = 0) {
         if (fancyCamera && camera) {
             if (!this._bloomInitialized) {
                 if (!this._bloomInitializing) {
@@ -474,7 +475,7 @@ export class ParticleSystem {
                     });
                 }
                 // Render directly to screen while bloom resources are loading
-                this.renderCamBrush(camera, null, brightness);
+                this.renderCamBrush(camera, null, brightness, hueShift);
                 return;
             }
 
@@ -488,7 +489,7 @@ export class ParticleSystem {
             }
 
             // Step 1: Render cam_brush to intermediate RGBA32F FBO
-            this.renderCamBrush(camera, this.camBrushFBO, brightness);
+            this.renderCamBrush(camera, this.camBrushFBO, brightness, hueShift);
 
             // Step 2: Bloom (downsample + blit + upsample)
             this._bloomPass();
@@ -514,7 +515,7 @@ export class ParticleSystem {
         }
     }
 
-    renderCamBrush(camera, targetFBO, brightness) {
+    renderCamBrush(camera, targetFBO, brightness, hueShift = 0) {
         const gl = this.gl;
         const prog = this.camBrushProgram;
         const c = this.c;
@@ -540,6 +541,7 @@ export class ParticleSystem {
         tryset(gl, prog, 'window_size', [gl.canvas.width, gl.canvas.height]);
         tryset(gl, prog, 'canvas_resolution', [c.canvasWidth, c.canvasHeight]);
         tryset(gl, prog, 'brightness', brightness, 'float');
+        tryset(gl, prog, 'audio_hue_shift', hueShift, 'float');
 
         // Additive blending
         gl.enable(gl.BLEND);

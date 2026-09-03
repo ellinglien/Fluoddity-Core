@@ -55,7 +55,7 @@ export function screenToUV(canvas, clientX, clientY, camera = null, constants = 
 /**
  * @param {object} state - shared AppState
  * @param {object} actions - callbacks:
- *   { toggleMode, performUndo, resetSimulation, randomizeSeed, closeDropdown }
+ *   { toggleMode, performUndo, resetSimulation, randomizeSeed, generateNewPreset, randomizeBehavior, closeDropdown }
  */
 export function setupKeyboard(state, actions) {
     window.addEventListener('keydown', (e) => {
@@ -78,6 +78,14 @@ export function setupKeyboard(state, actions) {
             case 'g':
             case 'G':
                 actions.randomizeSeed();
+                break;
+            case 'n':
+            case 'N':
+                actions.generateNewPreset();
+                break;
+            case 'b':
+            case 'B':
+                actions.randomizeBehavior();
                 break;
             case 'c':
             case 'C':

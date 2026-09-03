@@ -57,6 +57,20 @@ export async function fetchConfig(name) {
     return { ...cached, rule: Array.from(cached.rule) };
 }
 
+/**
+ * Registers a config under a name WITHOUT a physics_configs/*.json file on
+ * disk -- for locally-generated presets (see main.js's generateNewPreset).
+ * Pre-populating the cache this way means fetchConfig(name) finds it on
+ * the `configCache.has(name)` check above and never attempts the network
+ * fetch, so every existing caller (the dropdown's hover-preview/click,
+ * generateNewPreset's own mutate/crossover strategies) works on a
+ * generated preset exactly like a real one, no special-casing needed
+ * anywhere else.
+ */
+export function registerConfig(name, config) {
+    configCache.set(name, { ...config, rule: Array.from(config.rule) });
+}
+
 // ─── Shared app state ────────────────────────────────────────────────────────
 
 export function createAppState() {

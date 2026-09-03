@@ -30,6 +30,8 @@ function getElements() {
         brightnessSlider: document.getElementById('brightness-slider'),
         brightnessValue: document.getElementById('brightness-value'),
         initialConditionsToggle: document.getElementById('initial-conditions-toggle'),
+        cohortFencesToggle: document.getElementById('cohort-fences-toggle'),
+        cohortFencesRow: document.getElementById('cohort-fences-row'),
         mutationScaleSlider: document.getElementById('mutation-scale-slider'),
         mutationScaleValue: document.getElementById('mutation-scale-value'),
         cohortsSelector: document.getElementById('cohorts-selector'),
@@ -94,6 +96,18 @@ export function updateInitialConditionsDisplay(el, config) {
     const mode = config.initial_conditions || 0;
     const label = INITIAL_CONDITIONS_LABELS[mode] || `Mode ${mode}`;
     el.initialConditionsToggle.textContent = `Starting Positions: ${label}`;
+    updateCohortFencesDisplay(el, config);
+}
+
+// Cohort fences only do anything in Grid mode (see grid_fence_radius in
+// entity_update.frag) -- grey the row out otherwise so it's clear why toggling
+// it isn't visibly doing anything.
+export function updateCohortFencesDisplay(el, config) {
+    const isGrid = (config.initial_conditions || 0) === 0;
+    el.cohortFencesToggle.checked = !!config.cohort_fences;
+    el.cohortFencesToggle.disabled = !isGrid;
+    el.cohortFencesRow.style.opacity = isGrid ? '1' : '0.4';
+    el.cohortFencesRow.style.cursor = isGrid ? 'pointer' : 'default';
 }
 
 // ─── Mutation scale display ─────────────────────────────────────────────────
@@ -141,7 +155,10 @@ export function updateCohortsDisplay(el, config) {
 
 // ─── Preset dropdown ────────────────────────────────────────────────────────
 
-function formatPresetName(name) {
+// Exported -- main.js's own generateNewPreset (both the 🎲 button and the
+// transition-triggered case) needs to update presetTrigger's label the
+// same way a manual dropdown pick does.
+export function formatPresetName(name) {
     return name.replace(/([A-Z])/g, ' $1').trim();
 }
 
@@ -288,6 +305,10 @@ export function setupUI(presetNames, initialPresetName, state, actions) {
     el.cohortsSelector.addEventListener('change', () => {
         actions.onCohortsChange(parseInt(el.cohortsSelector.value));
         el.cohortsSelector.blur();
+    });
+
+    el.cohortFencesToggle.addEventListener('change', () => {
+        actions.onCohortFencesChange(el.cohortFencesToggle.checked);
     });
 
     const dropdown = setupDropdown(el, presetNames, state, actions);
