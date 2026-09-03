@@ -13,8 +13,8 @@
         /* ── The sidebar. Overlays the canvas: the simulation keeps the whole
            window and never resizes when the sidebar shows or hides. ── */
         #controls-left {
-            position: fixed; left: 0; top: 0; bottom: 0; width: 280px; z-index: 41;
-            background: rgba(0,0,0,.72); border-right: 1px solid #242424;
+            position: fixed; right: 0; top: 0; bottom: 0; width: 280px; z-index: 41;
+            background: rgba(0,0,0,.72); border-left: 1px solid #242424;
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             padding: 14px 14px 18px; display: flex; flex-direction: column; gap: 13px;
             overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
@@ -94,7 +94,7 @@
 
         /* Draw sliders sit on the right, out of the sidebar -- they only exist
            while drawing, and belong near the cursor rather than in the stack. */
-        #controls { position: fixed; top: 14px; right: 14px; z-index: 41; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+        #controls { position: fixed; top: 14px; left: 14px; z-index: 41; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
         #draw-controls { display: none; }
         #draw-controls.visible {
             display: flex; flex-direction: column; gap: 9px;
@@ -132,14 +132,14 @@
         #controls-popup .dismiss-hint { margin-top: 16px; text-align: center; font-size: 11px; color: #4a4a4a; }
 
         #error-display {
-            position: fixed; bottom: 12px; left: 296px; z-index: 10; color: #fff;
+            position: fixed; bottom: 52px; left: 14px; z-index: 10; color: #fff;
             font-family: inherit; font-size: 12px; max-width: 60vw; max-height: 50vh;
             overflow-y: auto; white-space: pre-wrap; background: rgba(0,0,0,.9);
             padding: 8px 12px; border: 1px solid #666; display: none;
         }
 
         #audio-debug-panel {
-            position: fixed; bottom: 14px; right: 14px; z-index: 10; color: #d8d8d8;
+            position: fixed; bottom: 14px; left: 14px; z-index: 10; color: #d8d8d8;
             font-family: inherit; font-size: 11px; white-space: pre;
             background: rgba(0,0,0,.8); padding: 9px 12px; border: 1px solid #262626; display: none;
         }
@@ -252,6 +252,7 @@
         <div class="sec">
             <div class="sechd"><span class="hdr">Audio</span><span class="caret">&#9662;</span></div>
             <button id="audio-capture-button" title="React to whatever your computer is playing. Turn on &quot;Share with system audio&quot; in the dialog -- the surface you pick does not matter, the audio is system-wide either way.">Share System Audio</button>
+            <button id="audio-loopback-button" title="Reacts to everything your computer plays, through an ordinary microphone-permission dialog -- no screen picker, no sharing bar, and the browser remembers it. Needs a loopback driver (BlackHole on macOS, VB-Audio on Windows) installed and set as your system output.">Loopback Device</button>
             <div class="btn-pair">
                 <button id="audio-file-button" title="Load a local audio file and drive the sim from it">Load File</button>
                 <input type="file" id="audio-file-input" accept="audio/*" style="display: none;">
@@ -355,8 +356,6 @@
             <h2>Controls</h2>
             <div class="control-line"><span class="key">Left Click</span> on something you like to set it as the new base species</div>
             <div class="control-line"><span class="key">Right Click</span> to back up</div>
-            <div class="control-line"><span class="key">WASD</span> to move</div>
-            <div class="control-line"><span class="key">E / Q</span> or <span class="key">Scroll</span> to zoom</div>
             <div class="control-line"><span class="key">SPACE</span> to pause</div>
             <div class="control-line"><span class="key">G</span> to randomize mutations (slider controls mutation power)</div>
             <div class="control-line"><span class="key">N</span> to generate a new preset</div>

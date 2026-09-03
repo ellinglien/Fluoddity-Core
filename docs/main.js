@@ -7,7 +7,7 @@
 import { ParticleSystem } from './particle_system.js';
 import { computeEntityRule, generateRandomCenters, mutateRule } from './rule_utils.js';
 import { RuleHistory, fetchConfig, createAppState, registerConfig } from './state.js';
-import { setupKeyboard, setupMouse, setupScroll, screenToWorld, updateCamera } from './input.js';
+import { setupKeyboard, setupMouse, screenToWorld, updateCamera } from './input.js';
 import {
     setupUI,
     updateModeDisplay,
@@ -22,6 +22,7 @@ import {
     sourceFromFile,
     sourceFromInputDevice,
     sourceFromDisplayMedia,
+    findLoopbackDevice,
     listAudioInputDevices,
     AudioReactiveDriver,
     DEFAULT_ROUTING
@@ -653,7 +654,6 @@ async function main() {
         getConstants: () => system.c,
     });
 
-    setupScroll(canvas, state);
 
     // ─── Auto-detect optimal settings ────────────────────────────────────────
 
@@ -709,6 +709,7 @@ async function main() {
     const audioFileButton = document.getElementById('audio-file-button');
     const audioFileInput = document.getElementById('audio-file-input');
     const audioCaptureButton = document.getElementById('audio-capture-button');
+    const audioLoopbackButton = document.getElementById('audio-loopback-button');
     const audioInputSelector = document.getElementById('audio-input-selector');
     const audioStopButton = document.getElementById('audio-stop-button');
     const audioStatusRow = document.getElementById('audio-status-row');
@@ -796,6 +797,12 @@ async function main() {
 
     function startAudioDriver(sourceNode, label) {
         audioDriver = new AudioReactiveDriver(audioContext, sourceNode);
+        // Once something is actually playing, the reaction controls are the
+        // reason you are here -- open them rather than making the user find
+        // the disclosure. Only ever opened, never force-closed on stop, so a
+        // deliberate collapse survives the next source change.
+        const mix = document.getElementById('audio-mix-details');
+        if (mix) mix.open = true;
         audioStatus.textContent = `audio: ${label}`;
         audioStatusRow.style.display = 'flex';
         audioDebugPanel.style.display = 'block';
@@ -843,6 +850,40 @@ async function main() {
             // shouting about in the log.
             if (e.name === 'NotAllowedError' || e.name === 'AbortError') return;
             logger.error(`Couldn't capture app audio: ${e.message}`);
+        }
+    });
+
+    // The clean path to system audio: one ordinary microphone-permission
+    // dialog, no screen picker, no sharing bar. Needs a loopback driver
+    // installed and set as the system output -- so find it rather than making
+    // the user identify it in a device list.
+    audioLoopbackButton.addEventListener('click', async () => {
+        audioLoopbackButton.blur();
+        try {
+            const ctx = await getOrCreateAudioContext();
+
+            // Device LABELS stay blank until audio permission has been granted
+            // at least once, and we match the loopback by name -- so this probe
+            // is what makes detection possible, not just a formality.
+            const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+            probe.getTracks().forEach((t) => t.stop());
+
+            const device = await findLoopbackDevice();
+            if (!device) {
+                logger.error(
+                    'No loopback device found. Install BlackHole (macOS) or VB-Audio (Windows), ' +
+                    'set it as your computer\'s output, then try again -- or use Share System Audio, ' +
+                    'which needs no install.'
+                );
+                return;
+            }
+
+            const node = await sourceFromInputDevice(ctx, device.deviceId);
+            adoptAudioCapture(node.mediaStream);
+            startAudioDriver(node, device.label);
+        } catch (e) {
+            if (e.name === 'NotAllowedError') return; // declining is a normal choice
+            logger.error(`Couldn't open the loopback device: ${e.message}`);
         }
     });
 

@@ -100,24 +100,12 @@ export function setupKeyboard(state, actions) {
                     actions.closeDropdown(true);
                 }
                 break;
-            case 'w': case 'W': state.cameraKeys.w = true; break;
-            case 'a': case 'A': state.cameraKeys.a = true; break;
-            case 's': case 'S': state.cameraKeys.s = true; break;
-            case 'd': case 'D': state.cameraKeys.d = true; break;
-            case 'q': case 'Q': state.cameraKeys.q = true; break;
-            case 'e': case 'E': state.cameraKeys.e = true; break;
         }
     });
 
     window.addEventListener('keyup', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
         switch (e.key) {
-            case 'w': case 'W': state.cameraKeys.w = false; break;
-            case 'a': case 'A': state.cameraKeys.a = false; break;
-            case 's': case 'S': state.cameraKeys.s = false; break;
-            case 'd': case 'D': state.cameraKeys.d = false; break;
-            case 'q': case 'Q': state.cameraKeys.q = false; break;
-            case 'e': case 'E': state.cameraKeys.e = false; break;
         }
     });
 }
@@ -173,51 +161,11 @@ export function setupMouse(canvas, state, actions) {
     });
 }
 
-// ─── Scroll wheel zoom (Factorio-style: zoom toward mouse pointer) ──────────
+// The view is fixed. The simulation surface is framed to the window and stays
+// there: no panning, no zooming, no scroll handler. The camera object still
+// exists at its identity values because screenToWorld reads it to map a click
+// back to a particle -- it is just never moved.
 
-export function setupScroll(canvas, state) {
-    canvas.addEventListener('wheel', (e) => {
-        if (!state.fancyCamera) return;
-        e.preventDefault();
 
-        const rect = canvas.getBoundingClientRect();
-        const mouseNDC_x = (e.clientX - rect.left) / rect.width * 2.0 - 1.0;
-        const mouseNDC_y = -((e.clientY - rect.top) / rect.height * 2.0 - 1.0);
-
-        // Shader: ndc.x * zoom = world.x * base_sx - posX
-        //         ndc.y * zoom = world.y * base_sy + posY
-        // For zoom-to-cursor (keep ndc fixed while zoom changes):
-        //   posX_new = posX_old - ndc.x * (zoom_new - zoom_old)
-        //   posY_new = posY_old + ndc.y * (zoom_new - zoom_old)
-        const cam = state.camera;
-        const zoomFactor = e.deltaY > 0 ? 1.1 : 1.0 / 1.1;
-        const newZoom = cam.zoom * zoomFactor;
-        const dZoom = newZoom - cam.zoom;
-
-        cam.posX -= mouseNDC_x * dZoom;
-        cam.posY += mouseNDC_y * dZoom;
-        cam.zoom = Math.max(0.01, Math.min(100.0, newZoom));
-    }, { passive: false });
-}
-
-// ─── Continuous camera update (called once per frame) ───────────────────────
-
-export function updateCamera(state, dt) {
-    if (!state.fancyCamera) return;
-    const keys = state.cameraKeys;
-    const cam = state.camera;
-
-    // Shader uses: ndc -= cam_pos * vec2(1, -1) / cam_zoom
-    // So increasing posX shifts view right, decreasing posY shifts view up
-    const panSpeed = 1.5 * cam.zoom * dt;
-    const aspectRatio = window.innerWidth / window.innerHeight;
-    if (keys.a) cam.posX -= panSpeed / aspectRatio;
-    if (keys.d) cam.posX += panSpeed / aspectRatio;
-    if (keys.w) cam.posY -= panSpeed;
-    if (keys.s) cam.posY += panSpeed;
-
-    const zoomSpeed = 1.5 * dt;
-    if (keys.q) cam.zoom *= (1.0 + zoomSpeed);
-    if (keys.e) cam.zoom *= (1.0 - zoomSpeed);
-    cam.zoom = Math.max(0.01, Math.min(100.0, cam.zoom));
-}
+// Kept as a no-op so the frame loop needs no special-casing; the view is fixed.
+export function updateCamera() {}

@@ -199,7 +199,8 @@ diffuse shift in an emergent flow pattern.
 | `docs/index.html` | Audio controls, mix panel, sliders |
 | `docs/shaders/cam_brush.vert` | `audio_hue_shift` uniform |
 | `docs/shaders/entity_update.frag` | `cohort_fences`, aspect-correct grid |
-| `docs/state.js`, `ui.js`, `input.js`, `particle_system.js`, `gl_utils.js` | Supporting wiring |
+| `docs/input.js` | Pan/zoom removed — the view is fixed to the window |
+| `docs/state.js`, `ui.js`, `particle_system.js`, `gl_utils.js` | Supporting wiring |
 
 `window.__audioDriver` is exposed in the console for poking at live band
 values while tuning.
